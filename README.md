@@ -31,8 +31,7 @@ Uni_LLM/
 ├── university_chatbot.py    # Main chatbot script
 ├── requirements.txt         # Python dependencies
 └── README.md                # This file
-
----
+```
 
 ## 🚀 Getting Started
 1. Install Requirements
