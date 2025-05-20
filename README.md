@@ -37,34 +37,39 @@ Uni_LLM/
 1. Install Requirements
 Make sure you have Python 3.10+ installed. Then run:
 
-bash
+```bash
 Copy
 Edit
 pip install -r requirements.txt
+```
+
 2. Install and Run Ollama
 Install Ollama from: https://ollama.com
 
 Then open a terminal and run:
 
-bash
+```bash
 Copy
 Edit
 ollama run phi3
 This will download and run the Phi-3 Mini language model locally.
+```
 
 3. Add Your PDFs
 Place your university/course PDFs in the pdfs/ folder. Example:
 
+```bash
 Copy
 Edit
 pdfs/
 ├── data_structures.pdf
 ├── calculus_notes.pdf
 └── machine_learning.pdf
+```
+
 4. Start the Chatbot
 Run the chatbot:
 
-bash
 Copy
 Edit
 python university_chatbot.py
