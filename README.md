@@ -38,8 +38,6 @@ Uni_LLM/
 Make sure you have Python 3.10+ installed. Then run:
 
 ```bash
-Copy
-Edit
 pip install -r requirements.txt
 ```
 
@@ -49,8 +47,6 @@ Install Ollama from: https://ollama.com
 Then open a terminal and run:
 
 ```bash
-Copy
-Edit
 ollama run phi3
 This will download and run the Phi-3 Mini language model locally.
 ```
@@ -59,8 +55,6 @@ This will download and run the Phi-3 Mini language model locally.
 Place your university/course PDFs in the pdfs/ folder. Example:
 
 ```bash
-Copy
-Edit
 pdfs/
 ├── data_structures.pdf
 ├── calculus_notes.pdf
@@ -69,11 +63,10 @@ pdfs/
 
 4. Start the Chatbot
 Run the chatbot:
-
-Copy
-Edit
+```bash
 python university_chatbot.py
 A Gradio interface will open in your browser, allowing you to chat with your academic PDFs.
+```
 
 💬 Example Use Cases
 "Explain the concept of Big-O from the data structures PDF."
