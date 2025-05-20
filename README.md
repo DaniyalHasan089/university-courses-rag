@@ -98,3 +98,8 @@ Daniyal – Final year CS student passionate about AI, education, and open tools
 📜 License
 This project is licensed under the MIT License. You are free to use, modify, and distribute it.
 
+---
+
+📌 Notes
+You can replace Phi-3 with other models like mistral, llama3, etc. supported by Ollama.
+
