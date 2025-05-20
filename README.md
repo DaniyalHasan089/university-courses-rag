@@ -32,3 +32,72 @@ Uni_LLM/
 ├── requirements.txt         # Python dependencies
 └── README.md                # This file
 
+---
+
+## 🚀 Getting Started
+1. Install Requirements
+Make sure you have Python 3.10+ installed. Then run:
+
+bash
+Copy
+Edit
+pip install -r requirements.txt
+2. Install and Run Ollama
+Install Ollama from: https://ollama.com
+
+Then open a terminal and run:
+
+bash
+Copy
+Edit
+ollama run phi3
+This will download and run the Phi-3 Mini language model locally.
+
+3. Add Your PDFs
+Place your university/course PDFs in the pdfs/ folder. Example:
+
+Copy
+Edit
+pdfs/
+├── data_structures.pdf
+├── calculus_notes.pdf
+└── machine_learning.pdf
+4. Start the Chatbot
+Run the chatbot:
+
+bash
+Copy
+Edit
+python university_chatbot.py
+A Gradio interface will open in your browser, allowing you to chat with your academic PDFs.
+
+💬 Example Use Cases
+"Explain the concept of Big-O from the data structures PDF."
+
+"What is in chapter 3 of my machine learning notes?"
+
+"Summarize calculus_notes.pdf."
+
+---
+
+🛠️ Tech Stack
+Tool	Purpose
+Python	Core programming language
+LangChain	RAG pipeline and logic
+langchain-community	PDF loader, embeddings, and chains
+ChromaDB	Vector store
+Ollama + Phi-3	Local LLM model (CPU support)
+Sentence Transformers	Embeddings
+Gradio	Chat UI
+PyPDF	PDF parsing
+
+---
+
+👨‍💻 Author
+Daniyal – Final year CS student passionate about AI, education, and open tools that empower learners.
+
+---
+
+📜 License
+This project is licensed under the MIT License. You are free to use, modify, and distribute it.
+
