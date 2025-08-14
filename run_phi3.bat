@@ -1,1 +1,0 @@
-ollama run phi3
