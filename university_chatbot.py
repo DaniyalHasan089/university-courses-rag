@@ -145,63 +145,147 @@ class UniversityRAGSystem:
 
     def build_vector_store(self, docs: List[Document], chunk_size: int = None, chunk_overlap: int = None):
         """Build and persist vector store"""
-        chunk_size = chunk_size or Config.DEFAULT_CHUNK_SIZE
-        chunk_overlap = chunk_overlap or Config.DEFAULT_CHUNK_OVERLAP
-        
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size, 
-            chunk_overlap=chunk_overlap
-        )
-        
-        st.info("Splitting documents into chunks...")
-        chunks = splitter.split_documents(docs)
-        
-        st.info(f"Creating embeddings for {len(chunks)} chunks...")
-        progress_bar = st.progress(0)
-        
-        # Create vector store in batches to show progress
-        batch_size = 50
-        all_chunks_processed = []
-        
-        for i in range(0, len(chunks), batch_size):
-            batch = chunks[i:i + batch_size]
-            all_chunks_processed.extend(batch)
-            progress_bar.progress(min(1.0, (i + batch_size) / len(chunks)))
-        
-        # Use ChromaDB directly with embeddings
-        client = chromadb.PersistentClient(path=Config.DB_PERSIST_DIRECTORY)
-        collection = client.get_or_create_collection(
-            name="documents",
-            embedding_function=chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name=Config.EMBEDDING_MODEL
+        try:
+            chunk_size = chunk_size or Config.DEFAULT_CHUNK_SIZE
+            chunk_overlap = chunk_overlap or Config.DEFAULT_CHUNK_OVERLAP
+            
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=chunk_size, 
+                chunk_overlap=chunk_overlap
             )
-        )
-        
-        # Add documents to ChromaDB
-        documents = [chunk.page_content for chunk in all_chunks_processed]
-        metadatas = [chunk.metadata for chunk in all_chunks_processed]
-        ids = [f"doc_{i}" for i in range(len(all_chunks_processed))]
-        
-        collection.add(
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids
-        )
-        
-        # Store the collection
-        self.vectordb = collection
-        
-        progress_bar.empty()
-        st.success(f"Vector store created with {len(chunks)} chunks!")
+            
+            st.info("Splitting documents into chunks...")
+            chunks = splitter.split_documents(docs)
+            
+            if not chunks:
+                st.error("No chunks were created from the documents. Please check your PDF files.")
+                return
+            
+            st.info(f"Creating embeddings for {len(chunks)} chunks...")
+            progress_bar = st.progress(0)
+            
+            # Create vector store in batches to show progress
+            batch_size = 50
+            all_chunks_processed = []
+            
+            for i in range(0, len(chunks), batch_size):
+                batch = chunks[i:i + batch_size]
+                all_chunks_processed.extend(batch)
+                progress_bar.progress(min(1.0, (i + batch_size) / len(chunks)))
+            
+            # Clean up any existing database first
+            import shutil
+            if os.path.exists(Config.DB_PERSIST_DIRECTORY):
+                try:
+                    shutil.rmtree(Config.DB_PERSIST_DIRECTORY)
+                    st.info("Cleaned up existing database...")
+                except Exception as e:
+                    st.warning(f"Could not clean existing database: {e}")
+            
+            # Create fresh ChromaDB client and collection
+            try:
+                client = chromadb.PersistentClient(path=Config.DB_PERSIST_DIRECTORY)
+                
+                # Try to delete collection if it exists
+                try:
+                    client.delete_collection(name="documents")
+                except:
+                    pass  # Collection doesn't exist, which is fine
+                
+                # Create new collection with better error handling
+                collection = client.create_collection(
+                    name="documents",
+                    embedding_function=chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction(
+                        model_name=Config.EMBEDDING_MODEL
+                    )
+                )
+                
+            except Exception as e:
+                st.error(f"Failed to create ChromaDB collection: {str(e)}")
+                progress_bar.empty()
+                return
+            
+            # Prepare documents for ChromaDB with better validation
+            documents = []
+            metadatas = []
+            ids = []
+            
+            for i, chunk in enumerate(all_chunks_processed):
+                if chunk.page_content and chunk.page_content.strip():
+                    documents.append(chunk.page_content)
+                    # Ensure metadata is serializable
+                    metadata = {}
+                    for key, value in chunk.metadata.items():
+                        if isinstance(value, (str, int, float, bool)):
+                            metadata[key] = value
+                        else:
+                            metadata[key] = str(value)
+                    metadatas.append(metadata)
+                    ids.append(f"doc_{i}")
+            
+            if not documents:
+                st.error("No valid document content found after processing.")
+                progress_bar.empty()
+                return
+            
+            # Add documents to ChromaDB in smaller batches to avoid memory issues
+            st.info("Adding documents to vector database...")
+            batch_size = 100
+            
+            for i in range(0, len(documents), batch_size):
+                end_idx = min(i + batch_size, len(documents))
+                batch_docs = documents[i:end_idx]
+                batch_metas = metadatas[i:end_idx]
+                batch_ids = ids[i:end_idx]
+                
+                try:
+                    collection.add(
+                        documents=batch_docs,
+                        metadatas=batch_metas,
+                        ids=batch_ids
+                    )
+                    progress_bar.progress(min(1.0, end_idx / len(documents)))
+                except Exception as e:
+                    st.error(f"Error adding batch {i//batch_size + 1}: {str(e)}")
+                    progress_bar.empty()
+                    return
+            
+            # Store the collection
+            self.vectordb = collection
+            
+            progress_bar.empty()
+            st.success(f"✅ Vector store created successfully with {len(documents)} chunks!")
+            
+        except Exception as e:
+            st.error(f"Error building vector store: {str(e)}")
+            st.error("Please try rebuilding the database or check your PDF files.")
+            if 'progress_bar' in locals():
+                progress_bar.empty()
         
     def load_vector_store(self):
         """Load existing vector store"""
         try:
+            if not os.path.exists(Config.DB_PERSIST_DIRECTORY):
+                return False
+                
             client = chromadb.PersistentClient(path=Config.DB_PERSIST_DIRECTORY)
-            self.vectordb = client.get_collection(name="documents")
-            return True
+            
+            # Check if collection exists
+            try:
+                self.vectordb = client.get_collection(name="documents")
+                # Verify the collection has data
+                count = self.vectordb.count()
+                if count == 0:
+                    st.warning("Database exists but is empty. Will rebuild from PDFs.")
+                    return False
+                st.info(f"Loaded existing database with {count} documents")
+                return True
+            except Exception as collection_error:
+                st.warning(f"Database exists but collection is invalid: {str(collection_error)}")
+                return False
+                
         except Exception as e:
-            st.error(f"Error loading vector store: {str(e)}")
+            st.warning(f"Could not access database: {str(e)}. Will rebuild from PDFs.")
             return False
     
     def setup_llm(self, api_key: str, model: str):
