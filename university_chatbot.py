@@ -101,12 +101,12 @@ class UniversityRAGSystem:
         
     def load_all_pdfs(self, folder_path: str) -> List[Document]:
         """Load all PDF documents from a folder"""
-    documents = []
+        documents = []
         pdf_files = []
         
         for root, dirs, files in os.walk(folder_path):
             for file in files:
-        if file.endswith(".pdf"):
+                if file.endswith(".pdf"):
                     pdf_files.append(os.path.join(root, file))
         
         progress_bar = st.progress(0)
@@ -132,7 +132,7 @@ class UniversityRAGSystem:
         status_text.empty()
         progress_bar.empty()
         
-    return documents
+        return documents
 
     def build_vector_store(self, docs: List[Document], chunk_size: int = None, chunk_overlap: int = None):
         """Build and persist vector store"""
@@ -145,7 +145,7 @@ class UniversityRAGSystem:
         )
         
         st.info("Splitting documents into chunks...")
-    chunks = splitter.split_documents(docs)
+        chunks = splitter.split_documents(docs)
         
         st.info(f"Creating embeddings for {len(chunks)} chunks...")
         progress_bar = st.progress(0)
