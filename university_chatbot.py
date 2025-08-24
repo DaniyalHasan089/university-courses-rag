@@ -5,6 +5,15 @@ from typing import List, Dict, Any
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
+
+# Fix SQLite version compatibility issue for ChromaDB
+import sys
+try:
+    __import__('pysqlite3')
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass
+
 import chromadb
 
 # Try to import HuggingFaceEmbeddings with fallback
