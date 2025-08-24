@@ -4,9 +4,31 @@ import requests
 from typing import List, Dict, Any
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
 import chromadb
+
+# Try to import HuggingFaceEmbeddings with fallback
+try:
+    from langchain_huggingface import HuggingFaceEmbeddings
+except ImportError:
+    try:
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+    except ImportError:
+        # Final fallback - create a simple embedding class
+        class HuggingFaceEmbeddings:
+            def __init__(self, model_name="all-MiniLM-L6-v2"):
+                try:
+                    from sentence_transformers import SentenceTransformer
+                    self.model = SentenceTransformer(model_name)
+                except ImportError:
+                    st.error("Required embedding packages not available. Please install sentence-transformers.")
+                    st.stop()
+            
+            def embed_documents(self, texts):
+                return self.model.encode(texts).tolist()
+            
+            def embed_query(self, text):
+                return self.model.encode([text])[0].tolist()
 import json
 import time
 from datetime import datetime
@@ -76,16 +98,15 @@ class UniversityRAGSystem:
     def __init__(self):
         self.vectordb = None
         self.llm = None
-        self.embeddings = HuggingFaceEmbeddings(model_name=Config.EMBEDDING_MODEL)
         
     def load_all_pdfs(self, folder_path: str) -> List[Document]:
         """Load all PDF documents from a folder"""
-        documents = []
+    documents = []
         pdf_files = []
         
         for root, dirs, files in os.walk(folder_path):
             for file in files:
-                if file.endswith(".pdf"):
+        if file.endswith(".pdf"):
                     pdf_files.append(os.path.join(root, file))
         
         progress_bar = st.progress(0)
@@ -111,8 +132,8 @@ class UniversityRAGSystem:
         status_text.empty()
         progress_bar.empty()
         
-        return documents
-    
+    return documents
+
     def build_vector_store(self, docs: List[Document], chunk_size: int = None, chunk_overlap: int = None):
         """Build and persist vector store"""
         chunk_size = chunk_size or Config.DEFAULT_CHUNK_SIZE
@@ -124,7 +145,7 @@ class UniversityRAGSystem:
         )
         
         st.info("Splitting documents into chunks...")
-        chunks = splitter.split_documents(docs)
+    chunks = splitter.split_documents(docs)
         
         st.info(f"Creating embeddings for {len(chunks)} chunks...")
         progress_bar = st.progress(0)
@@ -138,19 +159,27 @@ class UniversityRAGSystem:
             all_chunks_processed.extend(batch)
             progress_bar.progress(min(1.0, (i + batch_size) / len(chunks)))
         
-        # Use ChromaDB directly instead of deprecated LangChain wrapper
+        # Use ChromaDB directly with embeddings
         client = chromadb.PersistentClient(path=Config.DB_PERSIST_DIRECTORY)
-        collection = client.get_or_create_collection(name="documents")
+        collection = client.get_or_create_collection(
+            name="documents",
+            embedding_function=chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name=Config.EMBEDDING_MODEL
+            )
+        )
         
         # Add documents to ChromaDB
-        for i, chunk in enumerate(all_chunks_processed):
-            collection.add(
-                documents=[chunk.page_content],
-                metadatas=[chunk.metadata],
-                ids=[f"doc_{i}"]
-            )
+        documents = [chunk.page_content for chunk in all_chunks_processed]
+        metadatas = [chunk.metadata for chunk in all_chunks_processed]
+        ids = [f"doc_{i}" for i in range(len(all_chunks_processed))]
         
-        # Create a simple retriever
+        collection.add(
+            documents=documents,
+            metadatas=metadatas,
+            ids=ids
+        )
+        
+        # Store the collection
         self.vectordb = collection
         
         progress_bar.empty()
